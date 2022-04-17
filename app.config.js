@@ -7,7 +7,7 @@ class AppConfig{
     get ENV(){ return process.env.NODE_ENV || 'local'; };
     get PORT(){ return process.env.PORT || 8080; };
     get DOMAIN(){ return process.env.domain || `http://localhost:${this.PORT}` };
-    get DISCORD_BOT_TOKEN(){return process.env.discord_bot_token || 'OTYyODczMzE0NTM4Mjk1MzA4.YlN3pw.nt7WXT86jRqvjyy5Fbm2tvRMgeE' };
+    get DISCORD_BOT_TOKEN(){return process.env.discord_bot_token || 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' };
     get DISCORD_BOT_NAME(){return 'little-soucho'};
     get ENCRYPTION_KEY(){
         if(process.env.encryption_key){

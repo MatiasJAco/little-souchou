@@ -1,8 +1,8 @@
-# little-daiko
-A Discord bot for integrating with the [mildom.com](https://www.mildom.com) streaming platform.
+# little-souchou
+A Discord bot for integrating with the [twitch.com](https://www.twitch.com) streaming platform.
  
 ## About
-Named after the digital persona of beloved Mildom streamer [kson](https://www.mildom.com/10882672), this bot was built to help facilitate the enjoyment of her streams by her fans abroad. 
+Named after the latest digital persona of beloved  streamer [kson] , this bot was built to help facilitate the enjoyment of her streams by her fans abroad. 
  
 To that end, this bot seeks to achieve three primary goals:
 1) To provide go-live alerts for a designated streamer by pinging a designated role, and posting the alert in a designated Discord channel.
@@ -11,7 +11,7 @@ To that end, this bot seeks to achieve three primary goals:
  
 ## Contact
  
-This bot is built and managed by Tom "Skeletom" Farro. If you need to contact him, the best way to do so is via [Twitter](https://www.twitter.com/fomtarro) or by leaving an issue ticket on this repo. Currently, this bot is not available for public deployment, but may become public in the near future.
+This bot is built based on code written by Tom "Skeletom" Farro. If you need to contact him, the best way to do so is via [Twitter](https://www.twitter.com/fomtarro) or by leaving an issue ticket on this repo. Currently, this bot is not available for public deployment, but may become public in the near future.
  
 # Usage
  
