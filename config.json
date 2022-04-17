@@ -1,0 +1,14 @@
+{
+  "twitch_channels": "davooxeneize",
+  "twitch_channelsids": "499538703",
+  "discord_announce_channel": "general",
+  "discord_mentions": {
+    "matiasja88": "everyone",
+    "matiasja88": "here"
+  },
+  "discord_bot_token": "OTYyODczMzE0NTM4Mjk1MzA4.YlN3pw.nt7WXT86jRqvjyy5Fbm2tvRMgeE",
+  "twitch_client_id": "ibir5uhuz9inihf6bv0zu76xqimlba",
+  "twitch_oauth_token": "7dc5p73acbxkwh8i62ydcvx17lq4ah",
+  "twitch_check_interval_ms": 60000,
+  "twitch_use_boxart": true
+}

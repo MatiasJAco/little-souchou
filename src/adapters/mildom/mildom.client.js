@@ -1,0 +1,361 @@
+const { ChatMessage } = require('../../models/chat.message');
+const { LiveInfo } = require('../../models/live.info');
+const { v4 } = require('uuid');
+const { encrypt, decrypt } = require('../../utils/encryption');
+const { AppConfig } = require('../../../app.config');
+const https = require('https');
+const WebSocket = require('ws');
+
+const liveInfoURL = "https://cloudac.mildom.com/nonolive/gappserv/live/enterstudio"
+const serverUrl = "https://im.mildom.com/"
+
+/**
+ * Performs a basic GET request to the given URL.
+ * @param {URL} url The URL to GET.
+ * @param {console} logger Logging implementation.
+ * @returns 
+ */
+async function getRequest(url, logger){
+    const promise = new Promise(function(resolve, reject){
+        const req = https.get(url, res => {
+            logger.log(`GET Server Info status code: ${res.statusCode}`)
+            res.on('data', d => {
+                if(res.statusCode != 200){
+                    reject(`Bad status code: [${res.statusCode}]`);
+                    return;
+                }else{
+                    resolve(d);
+                }
+            });
+        });
+            
+        req.on('error', error => {
+            reject(error.toString());
+        });
+        
+        req.end();
+    }).then((d) => { return JSON.parse(d.toString()) }).catch((error) => { logger.error(error); return {} });
+
+    return promise;  
+}
+
+/**
+ * Gets info from mildom including the websocket address for the given channel.
+ * @param {Number} roomId Channel ID, must be numeric.
+ * @param {console} logger Logging implementation.
+ * @returns 
+ */
+async function getServerInfo(roomId, logger){
+    const url = new URL(serverUrl);
+    url.searchParams.append("room_id", roomId);
+    return getRequest(url, logger);
+}
+
+/**
+ * Gets live info status about the given channel.
+ * @param {Number} roomId Channel ID, must be numeric.
+ * @param {string} guestId Guest ID fort he client.
+ * @param {console} logger Logging implementation.
+ * @returns {Promise<LiveInfo>} The live info.
+ */
+async function getLiveInfo(roomId, guestId, logger){
+    const url = new URL(liveInfoURL);
+    url.searchParams.append("user_id", roomId);
+    url.searchParams.append("timestamp", Date.parse(new Date()))
+    url.searchParams.append("__guest_id", guestId)
+    url.searchParams.append("__location", "Japan|Tokyo")
+    url.searchParams.append("__country", "Japan")
+    url.searchParams.append("__cluster", "aws_japan")
+    url.searchParams.append("__platform", "web")
+    url.searchParams.append("__la", "ja")
+    url.searchParams.append("__sfr", "pc")
+    const liveInfo = await getRequest(url, logger);
+    //console.log(JSON.stringify(liveInfo))
+    if(liveInfo && liveInfo.body){        
+        return new LiveInfo(
+            liveInfo.body['live_start_ms'], 
+            Boolean( 
+                // I honestly have no idea what the best way to check live status is. 
+                // These properties seem to only exist on live streams.
+                liveInfo.body['channel_key'] && 
+                liveInfo.body['channel_lang'] && 
+                liveInfo.body['channel_lang'].length > 0
+            ),
+            false
+        );
+    }else if(liveInfo.code == 1001 && 
+            liveInfo.message && 
+            liveInfo.message.includes('サブスクライバ')){
+        return new LiveInfo(
+            0, 
+            true, 
+            true
+        );
+    }
+
+    return new LiveInfo(0, false, false);
+}
+
+/**
+ * The callback for an receiving a chat message.
+ *
+ * @callback ChatMessageCallback
+ * @param {ChatMessage} message The message.
+ */
+
+/**
+ * The callback for an receiving liveInfo.
+ *
+ * @callback LiveInfoCallback
+ * @param {LiveInfo} live The live Info.
+ */
+
+
+/**
+ * Creates and starts a listener to the mildom channel of the given ID.
+ * @param {AppConfig} appConfig The dependency injection config.
+ * @param {Number} roomId Channel ID, must be numeric.
+ * @param {ChatMessageCallback} onChatMessage Callback to execute upon recieving a chat message.
+ * @param {LiveInfoCallback} onLiveStart Callback to execute upon the channel going live.
+ * @param {LiveInfoCallback} onLiveEnd Callback to execute upon the channel ending the live.
+ * @param {VoidFunction} onOpen Callback to execute upon successful connection to the channel.
+ * @param {VoidFunction} onClose Callback to execute upon disconnect from the channel.
+ * @param {console} logger Logging implementation.
+ * @returns {ChatListener} The listener to the channel.
+ */
+async function startListener(appConfig, roomId, onChatMessage, onLiveStart, onLiveEnd, onOpen, onClose, logger){
+    
+    const uuId = v4();
+    const guestId = `pc-gp-${uuId}`;
+
+    const serverInfo = await getServerInfo(roomId, logger);
+    console.log(serverInfo);
+    if(serverInfo['wss_server']){
+        const wsUrl = `wss://${serverInfo['wss_server']}?roomId=${roomId}`;
+        // const wsUrl = "wss://weex-ws-jp.mildom.com/nonolive/weex_ws/interactive/ws?roomId=" + roomId;
+        logger.log(`Obtained websocket URL: ${wsUrl}`);
+        const ws = generateWebSocket(appConfig, wsUrl, roomId, guestId, logger);
+        return new ChatListener(roomId, guestId, ws, logger);
+    }
+
+    /**
+     * Generates a websocket with the provided callbacks for various events.
+     * @param {AppConfig} appConfig The dependency injection config.
+     * @param {URL} wsUrl Websocket URL.
+     * @param {Number} roomId Channel ID.
+     * @param {string} guestId User ID
+     * @param {console} logger Logging implementation.
+     * @returns {WebSocket}
+     */
+    function generateWebSocket(appConfig, wsUrl, roomId, guestId, logger){
+        const ws = new WebSocket(wsUrl);
+        ws.binaryType = 'arraybuffer';
+        ws.on('open', async () => {
+            logger.log(`Connecting to chat for roomId: ${roomId} at url ${wsUrl}...`);
+            let data = encrypt(
+                {
+                    level: 1,
+                    userName: "little-daiko",
+                    guestId: guestId,
+                    roomId: roomId,
+                    reqId: 1,
+                    nonopara: "nonopara",
+                    cmd: "enterRoom",
+                },
+                appConfig.ENCRYPTION_KEY, logger);
+            ws.send(data);
+            if(onOpen){
+                await onOpen();
+            }
+            logger.log(`Connected to chat websocket.`);
+        });   
+        ws.on('error', async (data) => {
+            logger.error(data);
+        })
+        ws.on('message', async (data) => {
+            // console.log(data);
+            if(data){
+                const message = decrypt(data, appConfig.ENCRYPTION_KEY, logger);
+                // console.log(message);
+                switch(message.cmd)
+                {
+                    case "enterRoom":
+                        logger.log(`Connected to chat for roomId: ${roomId}!`);
+                        break;
+                    case "onChat":
+                        await onChatMessage(new ChatMessage(
+                            message.userName,
+                            message.userId,
+                            message.userImg,
+                            message.msg,
+                            message.time,
+                            true
+                        ));
+                        break;
+                    case "onAdd":
+                        // only alert when streamer enters
+                        const onAddLiveInfo = await getLiveInfo(roomId, guestId, logger);
+                        if(roomId == message.userId && onAddLiveInfo.live == false){
+                            await onChatMessage(new ChatMessage(
+                                message.userName,
+                                message.userId,
+                                message.userImg,
+                                `User has entered the room.`,
+                                Date.parse(new Date(),
+                                false),
+                            ));
+                        }
+                        break;
+                    case "onLiveStart":
+                        logger.log(`Live has started, let's watch!`);
+                        const onLiveStartLiveInfo = await getLiveInfo(roomId, guestId, logger);
+                        await onLiveStart(onLiveStartLiveInfo);
+                        break;
+                    case "onLiveEnd":
+                        logger.log(`Live has ended, thank you for watching!`);
+                        await onLiveEnd(new LiveInfo(0, false, false));
+                        break;
+                }
+            }
+        });
+        ws.on('close', async (data) => {
+            logger.log(`Closing connection to chat for roomId: ${roomId}!`);
+            if(onClose){
+                await onClose();
+            }
+        })
+        // Stored function configuration to allow the websocket to recreate itself later.
+        ws.reopen = () => { return generateWebSocket(appConfig, wsUrl, roomId, guestId, logger)};
+        return ws;
+    }
+}
+
+/**
+ * A listener to the mildom channel of the given ID.
+ */
+class ChatListener{
+    /**
+     * 
+     * @param {number} roomId 
+     * @param {WebSocket} webSocket 
+     * @param {console} logger 
+     */
+    constructor(roomId, guestId, webSocket, logger){
+        this.roomId = roomId;
+        this.guestId = guestId
+        this.webSocket = webSocket;
+        this.logger = logger ? logger : console;
+        // start pinging
+        this.ping();
+    }
+
+    /**
+     * Gracefully disconnects the listener and stops automatic reconnect attempts.
+     */
+    stopListener(){
+        if(this.pingTimer){
+            clearTimeout(this.pingTimer);
+        }
+        if(this.webSocket){
+            this.webSocket.close();
+        }
+    }
+    /**
+     * Checks if the listener is actively connected to the channel.
+     * @returns {Boolean}
+     */
+    isListening(){
+        return this.webSocket ? this.webSocket.readyState === 1 : false;
+    }
+
+    /**
+     * Fetches the live info of the stream.
+     * @returns {LiveInfo}
+     */
+    async getLiveStatus(){
+        return await getLiveInfo(this.roomId, this.guestId, this.logger);
+    }
+
+    /**
+     * Recursively pings the channel to keep the listener alive.
+     */
+    async ping(){
+        try{
+            if(this.webSocket.readyState === 1){
+                this.webSocket.ping();
+            }else if(this.webSocket.readyState > 1){
+                this.logger.error(`Websocket closed unexpectedly for RoomId ${this.roomId}`)
+                this.webSocket = this.webSocket.reopen();
+            }
+            this.pingTimer = setTimeout(() => {
+                // console.log('ping!')
+                this.ping();
+            }, 2500);
+        }catch(e){
+            if(this.webSocket){
+                this.webSocket.close();
+            }
+            this.logger.error(`Websocket ping error to RoomId ${this.roomId}: ${e}`);
+        }
+    }
+}
+
+const regex = new RegExp(/\[\/([0-9]+)\]/g);
+const platformEmotes = [
+    [1001, '🔰'],
+    [1002, '😨'],
+    [1003, '🚩'],
+    [1004, '😆'],
+    [1005, '😳'],
+    [1006, '😡'],
+    [1007, '😴'],
+    [1008, '😘'],
+    [1009, '😍'],
+    [1010, '😤'],
+    [1011, '😲'],
+    [1012, '😏'],
+    [1013, '🍚'], // TODO: better representation for these three?
+    [1014, '🍚'],
+    [1015, '🍚'],
+    [1016, '😈'],
+    [1017, '🐱'],
+    [1018, '🙋‍♂️'],
+    [1019, '👩‍🎤'],
+    [1020, '🐸'],
+    [1021, '🐸♥'],
+];
+
+/**
+ * Performs necessary sanitization, such as emote replacement.
+ * @param {string} str The input string.
+ * @param {Map<number,string>} additionalEmotes A map of additional emotes to replace.
+ * @returns {string} The sanitized string.
+ */
+function sanitize(str, additionalEmotes){
+    let sanitized = str;
+    const matches = str.match(regex);
+    const fullEmoteMap = additionalEmotes ? platformEmotes.concat(additionalEmotes) : platformEmotes;
+    if(matches){
+        for(let match of matches){
+            const emote = fullEmoteMap.find(pair => { return match == `[/${pair[0]}]`});
+            const replacement = emote ? emote[1] : `[❓]`;
+            sanitized = sanitized.replace(match, replacement);
+        }
+    }
+    return sanitized;
+}
+
+/**
+ * Checks to see if a string is a Mildom-formatted emote.
+ * @param {string} str The string to check.
+ * @returns {boolean} Is the string an emote?
+ */
+function isEmote(str){
+    const matches = str.match(regex);
+    return matches && matches.length > 0 && str.length == matches[0].length;
+}
+
+module.exports.startListener = startListener;
+module.exports.ChatListener = ChatListener;
+module.exports.sanitize = sanitize;
+module.exports.isEmote = isEmote;

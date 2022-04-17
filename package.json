@@ -1,0 +1,56 @@
+{
+  "name": "little-daiko",
+  "version": "0.2.0",
+  "description": "A Discord bot for integrating with the mildom.com streaming platform.",
+  "main": "index.js",
+  "scripts": {
+    "start": "npm run index",
+    "generate-readme": "node generate.readme.js",
+    "start-pm2": "pm2 start index.js --interpreter=./node_modules/node/bin/node",
+    "stop-pm2": "pm2 stop all",
+    "index": "node index.js",
+    "check-push": "npm run test",
+    "test": "jest --coverage --collectCoverageFrom=src/**/*.{js,jsx}"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FomTarro/little-daiko.git"
+  },
+  "keywords": [
+    "mildom",
+    "discord",
+    "bot",
+    "js"
+  ],
+  "author": "Tom \"Skeletom\" Farro",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/FomTarro/little-daiko/issues"
+  },
+  "homepage": "https://github.com/FomTarro/little-daiko#readme",
+  "dependencies": {
+    "discord.js": "^13.0.0",
+    "dotenv": "^10.0.0",
+    "enmap": "^5.8.7",
+    "node": "16.6.1",
+    "oneline": "^1.0.3",
+    "uuid": "^8.3.2",
+    "ws": "^7.5.2",
+    "humanize-duration": "^3.23.1",
+    "xxtea-node": "^1.1.4"
+  },
+  "devDependencies": {
+    "husky": "^3.1.0",
+    "jest": "25.2.1",
+    "pm2": "^5.1.0"
+  },
+  "husky": {
+    "hooks": {
+      "pre-push": "npm run check-push",
+      "post-merge": "npm install"
+    }
+  },
+  "jest": {
+    "testEnvironment": "node"
+  }
+}
