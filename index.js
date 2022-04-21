@@ -176,11 +176,13 @@ TwitchMonitor.onChannelLiveUpdate((streamData) => {
     //Obtain VOD's url
 
     const channelIds = [];
-    config.twitch_channelsids.split(',').forEach((channelId) => {
-        if (channelId) {
-            channelIds.push(channelId);
-        }
-    });
+    var channelId = streamData.user_id;
+    channelIds.push(channelId);
+    // config.twitch_channelsids.split(',').forEach((channelId) => {
+    //     if (channelId) {
+    //         channelIds.push(channelId);
+    //     }
+    // });
     var VODurl ="";
     console.log('VOD:', channelIds.length );
     VODurl = TwitchApi.fetchVOD(channelIds)
@@ -215,15 +217,18 @@ TwitchMonitor.onChannelLiveUpdate((streamData) => {
     for (let i = 0; i < targetChannels.length; i++) {
         const discordChannel = targetChannels[i];
         const liveMsgDiscrim = `${discordChannel.guild.id}_${discordChannel.name}_${streamData.id}`;
-
+        console.log('guild',liveMsgDiscrim);
         if (discordChannel) {
             try {
                 // Either send a new message, or update an old one
                 let existingMsgId = messageHistory[liveMsgDiscrim] || null;
+
 				//let existingMsgId = false;
                 if (existingMsgId) {
+                    
+                   
                     //flush
-                    FlushCommand(appConfig).callback(message, args, override);
+                   // FlushCommand(AppConfig).callback(message, args, override);
                     // Fetch existing message
                     discordChannel.messages.fetch(existingMsgId)
                       .then((existingMsg) => {
@@ -232,6 +237,8 @@ TwitchMonitor.onChannelLiveUpdate((streamData) => {
                         }).then((message) => {
                           // Clean up entry if no longer live
                           if (!isLive) {
+                            console.log('Antes del flush' );
+                            FlushCommand(AppConfig).callback(discordChannel, "", false);
                             delete messageHistory[liveMsgDiscrim];
                             liveMessageDb.put('history', messageHistory);
                           }
@@ -246,13 +253,13 @@ TwitchMonitor.onChannelLiveUpdate((streamData) => {
                             // This will cause the message to be posted as new in the next update if needed.
                         }
                       });
-                } else {
+                } else {    
                     // Sending a new message
                     if (!isLive) {
                         // We do not post "new" notifications for channels going/being offline
                         continue;
                     }
-
+                 
                     // Expand the message with a @mention for "here" or "everyone"
                     // We don't do this in updates because it causes some people to get spammed
                     let mentionMode = (config.discord_mentions && config.discord_mentions[streamData.user_name.toLowerCase()]) || null;

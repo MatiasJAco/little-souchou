@@ -2,7 +2,7 @@
  * Several useful constant literal values for use throughout the bot.
  */
 class LiteralConstants{
-    get BOT_NAME(){ return `little-daiko`};
+    get BOT_NAME(){ return `little-souchou`};
     get ONLINE_EMOJI(){ return `🟢`};
     get OFFLINE_EMOJI(){ return `🔴`};
     get BOT_NAME_ONLINE(){ return `${this.BOT_NAME} ${this.ONLINE_EMOJI}`};

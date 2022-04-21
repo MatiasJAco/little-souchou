@@ -1,9 +1,26 @@
 const fs = require('fs');
+const path = require("path");
 
 class MiniDb {
   constructor(name) {
-//    this.basePath = `${__dirname}/data/${name}`;
-    this.basePath = `C:/Users/matia/Downloads/discordbot/little-daiko-master/data/${name}`;
+	   const pathLogs= path.join(__dirname,"..","..", "logs");
+  const pathData= path.join(__dirname,"..","..", "data");
+  this.basePath = path.join(__dirname,"..","..", "data",`${name}`); 
+   // this.basePath = `../../data/${name}`;
+   
+   
+   	if (!fs.existsSync(pathLogs)){
+      console.log('[MiniDb]', 'Create logs directory:', pathLogs);
+	  fs.mkdirSync(pathLogs);
+
+    }
+	if (!fs.existsSync(pathData)){
+      console.log('[MiniDb]', 'Create base directory:', pathData);
+	  fs.mkdirSync(pathData);
+
+    }
+	
+//    this.basePath = `C:/Users/matia/Downloads/discordbot/little-daiko-master/data/${name}`;
     if (!fs.existsSync(this.basePath)){
       console.log('[MiniDb]', 'Create base directory:', this.basePath);
       fs.mkdirSync(this.basePath);

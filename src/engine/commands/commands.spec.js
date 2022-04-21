@@ -671,7 +671,7 @@ describe("Status command tests", () => {
         const status = commands.find(c => { return c.aliases.includes('status')});
         const result = await status.callback(dummyMessage, []);
         expect(sent).toBe(true);
-        expect(nickname).toBe('little-daiko 🟢');
+        expect(nickname).toBe('little-souchou 🟢');
     });
     test("Status down", async() => {
         // set up mock dependencies
@@ -723,6 +723,6 @@ describe("Status command tests", () => {
         const status = commands.find(c => { return c.aliases.includes('status')});
         const result = await status.callback(dummyMessage, []);
         expect(sent).toBe(true);
-        expect(nickname).toBe('little-daiko 🔴');
+        expect(nickname).toBe('little-souchou 🔴');
     });
 });

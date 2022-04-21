@@ -155,7 +155,7 @@ async function startListener(appConfig, roomId, onChatMessage, onLiveStart, onLi
             let data = encrypt(
                 {
                     level: 1,
-                    userName: "little-daiko",
+                    userName: "little-souchou",
                     guestId: guestId,
                     roomId: roomId,
                     reqId: 1,
