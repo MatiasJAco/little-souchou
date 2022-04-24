@@ -5,15 +5,15 @@ const { HelpCommand } = require("./help.command");
 const { RoleCommand } = require("./role.command");
 const { PrefixCommand } = require("./prefix.command");
 const { StreamerCommand } = require("./streamer.command");
-const { UsersCommand } = require("./users.commands");
+//const { UsersCommand } = require("./users.commands");
 const { OutputCommand } = require("./output.command");
 const { StartCommand } = require("./start.command");
 const { TimestampCommand } = require("./timestamp.command");
 const { StatusCommand } = require("./status.command");
-const { RemoteCommand } = require("./remote.command");
-const { ServerCommand } = require("./servers.command");
+//const { RemoteCommand } = require("./remote.command");
+//const { ServerCommand } = require("./servers.command");
 const { StopCommand } = require("./stop.command");
-const { EmoteCommand } = require("./emote.command");
+//const { EmoteCommand } = require("./emote.command");
 const { FlushCommand } = require("./flush.command");
 
 /**
@@ -29,15 +29,15 @@ function commands(appConfig){
         RoleCommand(appConfig),
         PrefixCommand(appConfig),
         StreamerCommand(appConfig),
-        UsersCommand(appConfig),
+      //  UsersCommand(appConfig),
         OutputCommand(appConfig),
         StartCommand(appConfig),
         StopCommand(appConfig),
         TimestampCommand(appConfig),
         StatusCommand(appConfig),
-        RemoteCommand(appConfig),
-        ServerCommand(appConfig),
-        EmoteCommand(appConfig),
+  //      RemoteCommand(appConfig),
+  //      ServerCommand(appConfig),
+//        EmoteCommand(appConfig),
         FlushCommand(appConfig),
     ];
 }

@@ -14,14 +14,23 @@ function command(appConfig){
         2,
         async (message, args, override) => { 
             const configKey = override ? override : message;
+            console.log("Tamaño args",args.length);
             if(args && args.length > 1){
+                console.log("Entro");
                 const type = args[0];
+                console.log("Type output",type);
+                console.log("Tamaño args",args.length);
                 const channels = appConfig.CONFIG_STORAGE.getProperty(configKey, "output");
                 if(type === 'chat'){
+                    console.log("Entro a chat",type);
                     if(args.length > 2){
                         const operation = args[1];
                         const language = args[2].toLowerCase();
+                        console.log("operacion",operation);
+                        console.log("language",language);
                         if(operation === 'add' && args.length > 3){
+                            console.log("operacion",operation);
+                            console.log("language",language);
                             channels.chat[language] = args[3];
                             appConfig.CONFIG_STORAGE.setProperty(configKey, "output", channels);
                             return LiteralConstants.REACT_OK_EMOJI;

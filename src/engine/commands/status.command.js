@@ -15,13 +15,21 @@ function command(appConfig){
             const configKey = override ? override : message;
             const guild = appConfig.DISCORD_HELPERS.getOtherBotGuilds(message).find(g => g.id == configKey.guild.id);
             const listener = appConfig.LISTENER_STORAGE.getListener(configKey);
-            const isListening = listener && listener.isListening();
+            //const isListening = listener && listener.isListening();
+            const isListening = appConfig.CONFIG_STORAGE.getProperty(configKey, 'listening');
             if(guild && guild.me){
-                guild.me.setNickname(isListening == true ? LiteralConstants.BOT_NAME_ONLINE : LiteralConstants.BOT_NAME_OFFLINE);
-            }
-            appConfig.CONFIG_STORAGE.setProperty(configKey, 'listening', Boolean(isListening));
+          //      guild.me.setNickname(isListening == true ? LiteralConstants.BOT_NAME_OFFLINE : LiteralConstants.BOT_NAME_ONLINE);
+                console.log("cliente:",guild);
+                console.log("guild.me:",guild.me);
 
-            const status = isListening ? "listening" : "stopped";
+            }
+         //   appConfig.CONFIG_STORAGE.setProperty(configKey, 'listening', Boolean(isListening));
+            console.log("status",isListening);
+            let status =  "listening" ;
+            if (!isListening){
+                status = "stopped";
+
+            }
             message.channel.send({content: `Current status: \`${status}\`.`});
         },
         [

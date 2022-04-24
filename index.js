@@ -14,7 +14,7 @@ const DiscordChannelSync = require("./src/utils/discord-channel-sync");
 //const ElizaHelper = require('./eliza');
 const LiveEmbed = require('./src/utils/live-embed');
 const MiniDb = require('./src/utils/minidb');
-const TwitchApi = require('./src/adapters/twitch/twitch-api');
+//const TwitchApi = require('./src/adapters/twitch/twitch-api');
 const { FlushCommand } = require("./src/engine/commands/flush.command");
 // -------------------------------------
 
@@ -55,21 +55,21 @@ let getServerEmoji = (emojiName, asText) => {
 };
 global.getServerEmoji = getServerEmoji;
 
- let syncServerList = (logMembership) => {
+ /*let syncServerList = (logMembership) => {
      targetChannels = DiscordChannelSync.getChannelList(client, config.discord_announce_channel, logMembership);
- };
+ };*/
 
 client.on('ready', () => {
     console.log('[Discord]', `Bot is ready; logged in as ${client.user.tag}.`);
 
  //    Init list of connected servers, and determine which channels we are announcing to
-    syncServerList(true);
+   // syncServerList(true);
 
     // Keep our activity in the user list in sync
-    StreamActivity.init(client);
+   // StreamActivity.init(client);
 
     // Begin Twitch API polling
-     TwitchMonitor.start();
+    // TwitchMonitor.start();
 
     // Activate Food Use integration
    // FooduseMonitor.start();
@@ -162,174 +162,7 @@ client.on('ready', () => {
 
 let liveMessageDb = new MiniDb('live-messages');
 let messageHistory = liveMessageDb.get("history") || { };
-
-TwitchMonitor.onChannelLiveUpdate((streamData) => {
-    const isLive = streamData.type === "live";
-
-    // Refresh channel list
-    // try {
-    //     syncServerList(false);
-    // } catch (e) { }
-
-    // Update activity
-    StreamActivity.setChannelOnline(streamData);
-    //Obtain VOD's url
-
-    const channelIds = [];
-    var channelId = streamData.user_id;
-    channelIds.push(channelId);
-    // config.twitch_channelsids.split(',').forEach((channelId) => {
-    //     if (channelId) {
-    //         channelIds.push(channelId);
-    //     }
-    // });
-    var VODurl ="";
-    console.log('VOD:', channelIds.length );
-    VODurl = TwitchApi.fetchVOD(channelIds)
-    .then((channels) => {
-        console.log('VOD:', channels[0].url );
-        VODurl=channels[0].url;
-      
-      //  this.handleStreamList(channels);
-    
-    
-    
-    const configKey = "kson";
-
-    const listener = new ChatListener(streamData.user_login, streamData,streamData.type,VODurl,false);
-
-    console.log('Nuevo listener:', listener.getLiveStatus() );
-    console.log('Nuevo listener:', listener.getName() );
-    console.log('Nuevo listener VOD:', listener.getVODurl() );
-    AppConfig.LISTENER_STORAGE.setListener(configKey, listener);
-    //AppConfig.CONFIG_STORAGE.setProperty(configKey, 'listening', "true");
-}).catch((err) => {
-    console.warn('[TwitchMonitor]', 'Error in VOD query:', err);
-});
-    // Generate message
-    const msgFormatted = `${streamData.user_name} went live on Twitch!`;
-    console.log('Stream data:',streamData.started_at,streamData.game_name );
-    const msgEmbed = LiveEmbed.createForStream(streamData);
-
-    // Broadcast to all target channels
-    let anySent = false;
-
-    for (let i = 0; i < targetChannels.length; i++) {
-        const discordChannel = targetChannels[i];
-        const liveMsgDiscrim = `${discordChannel.guild.id}_${discordChannel.name}_${streamData.id}`;
-        console.log('guild',liveMsgDiscrim);
-        if (discordChannel) {
-            try {
-                // Either send a new message, or update an old one
-                let existingMsgId = messageHistory[liveMsgDiscrim] || null;
-
-				//let existingMsgId = false;
-                if (existingMsgId) {
-                    
-                   
-                    //flush
-                   // FlushCommand(AppConfig).callback(message, args, override);
-                    // Fetch existing message
-                    discordChannel.messages.fetch(existingMsgId)
-                      .then((existingMsg) => {
-                        existingMsg.edit(msgFormatted, {
-                          embed: msgEmbed
-                        }).then((message) => {
-                          // Clean up entry if no longer live
-                          if (!isLive) {
-                            console.log('Antes del flush' );
-                            FlushCommand(AppConfig).callback(discordChannel, "", false);
-                            delete messageHistory[liveMsgDiscrim];
-                            liveMessageDb.put('history', messageHistory);
-                          }
-                        });
-                      })
-                      .catch((e) => {
-                        // Unable to retrieve message object for editing
-                        if (e.message === "Unknown Message") {
-                            // Specific error: the message does not exist, most likely deleted.
-                            delete messageHistory[liveMsgDiscrim];
-                            liveMessageDb.put('history', messageHistory);
-                            // This will cause the message to be posted as new in the next update if needed.
-                        }
-                      });
-                } else {    
-                    // Sending a new message
-                    if (!isLive) {
-                        // We do not post "new" notifications for channels going/being offline
-                        continue;
-                    }
-                 
-                    // Expand the message with a @mention for "here" or "everyone"
-                    // We don't do this in updates because it causes some people to get spammed
-                    let mentionMode = (config.discord_mentions && config.discord_mentions[streamData.user_name.toLowerCase()]) || null;
-
-                    if (mentionMode) {
-                        mentionMode = mentionMode.toLowerCase();
-
-                        if (mentionMode === "everyone" || mentionMode === "here") {
-                            // Reserved @ keywords for discord that can be mentioned directly as text
-                            mentionMode = `@${mentionMode}`;
-                        } else {
-                            // Most likely a role that needs to be translated to <@&id> format
-                            let roleData = discordChannel.guild.roles.cache.find((role) => {
-                                return (role.name.toLowerCase() === mentionMode);
-                            });
-
-                            if (roleData) {
-                                mentionMode = `<@&${roleData.id}>`;
-                            } else {
-                                console.log('[Discord]', `Cannot mention role: ${mentionMode}`,
-                                  `(does not exist on server ${discordChannel.guild.name})`);
-                                mentionMode = null;
-                            }
-                        }
-                    }
-
-                    let msgToSend = msgFormatted;
-
-                    if (mentionMode) {
-                        msgToSend = msgFormatted + ` ${mentionMode}`
-                    }
-
-                    let msgOptions = {
-                        embed: msgEmbed
-                    };
-
-  //                  const embed2 = new MessageEmbed()
-  //.setTitle(`Testing`)
-  //.setDescription(`This is the description`)
-  //.setTimestamp();
-
-                    //discordChannel.send(msgToSend, msgOptions)
-                    discordChannel.send({content: msgToSend,  embeds: [msgEmbed]})
-                        .then((message) => {
-                            console.log('[Discord]', `Sent announce msg to #${discordChannel.name} on ${discordChannel.guild.name}`)
-
-                            messageHistory[liveMsgDiscrim] = message.id;
-                            liveMessageDb.put('history', messageHistory);
-                        })
-                        .catch((err) => {
-                            console.log('[Discord]', `Could not send announce msg to #${discordChannel.name} on ${discordChannel.guild.name}:`, err.message);
-                        });
-                }
-
-                anySent = true;
-            } catch (e) {
-                console.warn('[Discord]', 'Message send problem:', e);
-            }
-        }
-    }
-
-    liveMessageDb.put('history', messageHistory);
-    return anySent;
-});
-
- TwitchMonitor.onChannelOffline((streamData) => {
-     // Update activity
-     StreamActivity.setChannelOffline(streamData);
- });
-
+//AppConfig.CONFIG_STORAGE.setProperty("kson", 'listening', false);
 
 
 

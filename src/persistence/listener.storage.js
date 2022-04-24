@@ -1,5 +1,4 @@
 const { AppConfig } = require('../../app.config');
-//const { ChatListener } = require('../adapters/mildom/mildom.client');
 const { ChatListener } = require('../adapters/twitch/twitch-chatlistener');
 
 const storage = new Map();

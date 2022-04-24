@@ -67,7 +67,7 @@ function command(appConfig){
                         await embed.react(LiteralConstants.REACT_DOWNVOTE_EMOJI);
                         return;
                     }
-                    const reason = liveInfo.isMembership() ? `Stream currently is membership-only!` : `Stream is not currently live!`;
+                    const reason =  `Stream is not currently live!`;
                     logger.log(`Cannot post timestamp because: ${reason}`);
                     message.channel.send({
                         content: reason

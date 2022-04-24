@@ -4,7 +4,7 @@ const MiniDb = require('../../utils/minidb');
 const moment = require('moment');
 
 /**
- * A listener to the mildom channel of the given ID.
+ * A listener to the twitch channel of the given ID.
  */
  class ChatListener{
     /**

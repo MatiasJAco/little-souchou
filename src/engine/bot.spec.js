@@ -73,20 +73,7 @@ describe("Other bot functions", () => {
     test("Auto-reboot Listener", async() => {
         // set up mock dependencies
         var isListening = false;
-        const dummyConfig = {
-            MILDOM_CLIENT: {
-                startListener(){
-                    isListening = true;
-                    return {
-                        isListening(){
-                            return isListening;
-                        },
-                        stopListener(){
-                            isListening = false;
-                        }
-                    }
-                }
-            },
+        const dummyConfig = {        
             DISCORD_CLIENT: AppConfig.DISCORD_CLIENT,
             DISCORD_HELPERS: {
                 isDm(){

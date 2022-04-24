@@ -10,15 +10,15 @@ const config = new Enmap({
         prefix: "!",
         role: {
             ops: "admin",
-            alert: "twitch" 
+            alert: "Twitch" 
         },
-        streamer: "kson",
+        streamer: "ksonsouchou",
         users: [],
         output: {
             chat: {
-                "en": "general"
+                "en": "stream-chat"
             },
-            alert: "general"
+            alert: "stream-chat"
         },
         emotes: {},
         listening: false,

@@ -2,6 +2,7 @@ const config = require('../../../config.json');
 const TwitchApi = require('./twitch-api');
 const MiniDb = require('../../utils/minidb');
 const moment = require('moment');
+const { appConfig } = require('../../../app.config');
 
 class TwitchMonitor {
     static __init() {
@@ -17,15 +18,29 @@ class TwitchMonitor {
         this._watchingGameIds = [];
     }
 
-    static start() {
+    static start(configKey ,appConfig) {
         // Load channel names from config
         this.channelNames = [];
         this.channelIds = [];
-        config.twitch_channels.split(',').forEach((channelName) => {
-            if (channelName) {
-                this.channelNames.push(channelName.toLowerCase());
-            }
-        });
+         config.twitch_channels.split(',').forEach((channelName) => {
+             if (channelName) {
+                 this.channelNames.push(channelName.toLowerCase());
+             }
+         });
+     
+        if (typeof appConfig === 'undefined') {
+            // myVar is (not defined) OR (defined AND unitialized)
+          } else {
+            // myVar is defined AND initialized
+            console.log('[TwitchMonitor]', 'Obtener streamer al inicio',appConfig);
+            const users = appConfig.CONFIG_STORAGE.getProperty(configKey, "streamer");
+            console.log('[TwitchMonitor]', 'streamer es:',users);
+            this.channelNames.length = 0
+            this.channelNames.push(users.toLowerCase());
+          }
+
+
+     
 
 
         config.twitch_channelsids.split(',').forEach((channelId) => {
@@ -50,25 +65,51 @@ class TwitchMonitor {
             checkIntervalMs = TwitchMonitor.MIN_POLL_INTERVAL_MS;
         }
         setInterval(() => {
-            this.refresh("Periodic refresh");
+            this.refresh("Periodic refresh",appConfig,configKey);
         }, checkIntervalMs + 1000);
 
         // Immediate refresh after startup
         setTimeout(() => {
-            this.refresh("Initial refresh after start-up");
+            this.refresh("Initial refresh after start-up",appConfig,configKey);
         }, 1000);
 
         // Ready!
         console.log('[TwitchMonitor]', `Configured stream status polling for channels:`, this.channelNames.join(', '),
           `(${checkIntervalMs}ms interval)`);
+
+          appConfig.CONFIG_STORAGE.setProperty(configKey, 'listening', true);
     }
 
-    static refresh(reason) {
+    static refresh(reason,appConfig,configKey) {
+        let users = "";
+      //  const configKey = "kson";
+        if (typeof appConfig === 'undefined') {
+            // myVar is (not defined) OR (defined AND unitialized)
+            console.log("No definido");
+          } else {
+          console.log('[TwitchMonitor]', 'Obtener streamer',appConfig);
+            users = appConfig.CONFIG_STORAGE.getProperty(configKey, "streamer");
+            console.log('[TwitchMonitor]', 'streamer es:',users);
+            console.log('[TwitchMonitor]', 'Canales actuales',this.channelNames.length);
+            if (users === "null" && this.channelNames.length > 0){
+                
+                let last_channel = this.channelNames.pop();
+                console.log('[TwitchMonitor]', 'ultimo canal:',last_channel);
+               // this.handleChannelOffline(this.streamData[last_channel]);
+            }
+            this.channelNames.length = 0
+            this.channelNames.push(users.toLowerCase());
+        
+          }
+          const strValue="a";
+    
+            
+        
         const now = moment();
         console.log('[Twitch]', ' ▪ ▪ ▪ ▪ ▪ ', `Refreshing now (${reason ? reason : "No reason"})`, ' ▪ ▪ ▪ ▪ ▪ ');
 
         // Refresh all users periodically
-        if (this._lastUserRefresh === null || now.diff(moment(this._lastUserRefresh), 'minutes') >= 10) {
+        if (this._lastUserRefresh === null || now.diff(moment(this._lastUserRefresh), 'minutes') >= 10 && users !== "null") {
             this._pendingUserRefresh = true;
             TwitchApi.fetchUsers(this.channelNames)
               .then((users) => {
@@ -86,7 +127,7 @@ class TwitchMonitor {
         }
 
         // Refresh all games if needed
-        if (this._pendingGameRefresh) {
+        if (this._pendingGameRefresh && users !== "null") {
             TwitchApi.fetchGames(this._watchingGameIds)
               .then((games) => {
                   this.handleGameList(games);
@@ -102,7 +143,7 @@ class TwitchMonitor {
         }
 
         // Refresh all streams
-        if (!this._pendingUserRefresh && !this._pendingGameRefresh) {
+        if (!this._pendingUserRefresh && !this._pendingGameRefresh && users !== "null") {
             TwitchApi.fetchStreams(this.channelNames)
               .then((channels) => {
                   this.handleStreamList(channels);
@@ -111,6 +152,7 @@ class TwitchMonitor {
                   console.warn('[TwitchMonitor]', 'Error in streams refresh:', err);
               });
         }
+    
     }
 
     static handleUserList(users) {

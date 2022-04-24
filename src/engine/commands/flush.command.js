@@ -74,11 +74,22 @@ function command(appConfig){
                             const attachment = appConfig.DISCORD_HELPERS.generateAttachment(content, `${language}-summary.txt`);
                             await channel.send({ content: `The stream has ended. Here's a summary:`, files: [ attachment ]});
                         }
+                        if(summary.length == 0){
+                          //  const content = summary.sort().join('\n');
+                         //   logger.log(`Posting ${language} summary:\n${content}`);
+                          //  const attachment = appConfig.DISCORD_HELPERS.generateAttachment(content, `${language}-summary.txt`);
+                            await channel.send({ content: `The stream has ended. There are no tags.`});
+                        }
                     }
                 }
                 // flush
                 appConfig.TIMESTAMP_STORAGE.deleteGuildTimestamps(guild);
             }
+         /*   if (timestamps.length == 0){
+                await channel.send({ content: `The stream has ended. There are no tags.`});
+
+            }*/
+           
         },
         [
             new HelpTip(

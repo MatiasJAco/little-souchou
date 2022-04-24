@@ -17,7 +17,9 @@ function command(appConfig){
             const logger = new Logger(appConfig.DISCORD_HELPERS.getGuildId(configKey));
             logger.log("args:", `${args.join(' ')}`);
             logger.log("Configkey:", `${configKey}`);
-
+            
+            const test_streamer = appConfig.CONFIG_STORAGE.getProperty(configKey,"streamer");
+            console.log("test_streamer es:",test_streamer);
             const fields = appConfig.CONFIG_STORAGE.getAllProperties(configKey).map(prop => {
                 return {
                     name: `${prop[0]}:`,

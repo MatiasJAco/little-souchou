@@ -14,13 +14,19 @@ function command(appConfig){
         2,
         async (message, args, override) => { 
             const configKey = override ? override : message;
+            console.log('args_lenght:', args.length );
             if(args && args.length > 0){
+
                 const argId = args[0];
-          //      if(!isNaN(argId)){
+                console.log('argid:', argId );
+              //  if(isNaN(argId)){
+
                     appConfig.CONFIG_STORAGE.setProperty(configKey, "streamer", argId);
+                    console.log('Ok:' );
                     return LiteralConstants.REACT_OK_EMOJI;
-        //        }
-            }
+                }
+         //   }
+         console.log('aNot_OK' );
             return LiteralConstants.REACT_ERROR_EMOJI;
         },
         [

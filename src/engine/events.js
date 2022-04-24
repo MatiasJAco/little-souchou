@@ -44,12 +44,13 @@ function events(appConfig) {
                     channel:{send(){}}
                 }
                 try{
-                    logger.log(`Checking listener status for Guild: ${guild.id}...`)
+                     logger.log(`Checking listener status for Guild: ${guild.id}...`)
                     const listening = appConfig.CONFIG_STORAGE.getProperty(guild, 'listening');
                     if(listening == true){
                         logger.log(`Rebooting listener for Guild: ${guild.id}!`)
-                        await StartCommand(appConfig).callback(dummyMessage);
-                    }
+                        AppConfig.CONFIG_STORAGE.setProperty(guild, 'listening', false);
+                        //await StartCommand(appConfig).callback(dummyMessage);
+                    } 
                 }catch(e){
                     const error = `Error staring listener for Guild: ${guild.id}: ${e.stack ? e.stack : e}`
                     logger.error(error);
