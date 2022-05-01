@@ -18,6 +18,8 @@ function command(appConfig){
             const logger = new Logger(appConfig.DISCORD_HELPERS.getGuildId(configKey));
             const guild = appConfig.DISCORD_HELPERS.getOtherBotGuilds(message).find(g => g.id == configKey.guild.id);
             const timestamps = appConfig.TIMESTAMP_STORAGE.getAllTimestamps(guild);
+            logger.log(`The guild is ${guild.id} `);
+            console.log(guild.id," - tiene que revisar los timestamps:",timestamps);
             logger.log(`Generating stream-end summary...`);
             if(timestamps && timestamps.length > 0){
                 // get all language channels
@@ -30,17 +32,22 @@ function command(appConfig){
                         // find corresponding output channel
                         const channel = appConfig.DISCORD_HELPERS.getChannel(guild, channels.find(c => c[0] == language)[1]);
                         for(timestamp of entry[1]){
+                            console.log(guild.id," timestamp of entry :",timestamp);
                             // check each stored timestamp for upvotes
                             if(timestamp.length > 1){
                                 const timestampId = timestamp[0];
                                 try{
                                     const timestampMessage = await channel.messages.fetch(timestampId);
                                     if(timestampMessage){
+                                        console.log(guild.id,"Dentro de timestamp message :",timestamp);
+                                        console.log(guild.id,"Timestampmessage es:",timestampMessage);
                                         const upvotes = timestampMessage.reactions.cache.get(LiteralConstants.REACT_UPVOTE_EMOJI);
+                                        console.log(guild.id,"Upvotes es:",upvotes);
                                         const upvoteCount = upvotes ? upvotes.count : 0;
                                         const downvotes = timestampMessage.reactions.cache.get(LiteralConstants.REACT_DOWNVOTE_EMOJI);
                                         const downvoteCount = downvotes ? downvotes.count : 0;
                                         if(upvoteCount >= downvoteCount){
+                                            console.log(guild.id,"Dentro de up and down  :",timestamp);
                                             // write to summary log if upvoted
                                             const timestampEntry = `${formatTime(
                                                 timestamp[1].stampTime + 
@@ -50,7 +57,7 @@ function command(appConfig){
                                                     timestamp[1].adjustment - 
                                                     timestamp[1].startTime).printTwitch()}`
                                             summary.push(timestampEntry);
-                                            // console.log(`${guild.id} - ${language} - ${JSON.stringify(timestamp)}`);
+                                             console.log(`Tiemstamp ${guild.id} - ${language} - ${JSON.stringify(timestamp)}`);
                                         }
                                         // disables the buttons
                                         await timestampMessage.edit({

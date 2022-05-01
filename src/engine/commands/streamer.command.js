@@ -20,8 +20,9 @@ function command(appConfig){
                 const argId = args[0];
                 console.log('argid:', argId );
               //  if(isNaN(argId)){
-
+                    
                     appConfig.CONFIG_STORAGE.setProperty(configKey, "streamer", argId);
+                    appConfig.CONFIG_STORAGE.setProperty(configKey, 'stream_live', false);
                     console.log('Ok:' );
                     return LiteralConstants.REACT_OK_EMOJI;
                 }

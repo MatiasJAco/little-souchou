@@ -16,8 +16,21 @@ function command(appConfig){
         2, 
         async (message, args, override) => { 
             const configKey = override ? override : message;
-            StreamerCommand(AppConfig).callback(message, ["null"], false);
-            console.log("Cambio streamer",message);
+            console.log("Args de stop",args);
+            let  autostop = "";
+            let newstreamer="null";
+            if (args.length > 0){
+                autostop = args;
+                console.log("Autostop es:",autostop);
+                 if (autostop === "autostop"){
+                    newstreamer = AppConfig.CONFIG_STORAGE.getProperty(configKey, 'streamer');
+                 }
+            }
+           
+            console.log("Cambio streamer",newstreamer);
+            StreamerCommand(AppConfig).callback(message, [newstreamer], false);
+            appConfig.CONFIG_STORAGE.setProperty(configKey, 'stream_live', false);
+            
             //Obtain guild to change icon
             const guild = appConfig.DISCORD_HELPERS.getOtherBotGuilds(message).find(g => g.id == configKey.guild.id);
             console.log('[StreamActivity]', 'Cleared current activity.');
@@ -25,7 +38,7 @@ function command(appConfig){
 
             //const logger = new Logger(appConfig.DISCORD_HELPERS.getGuildId(configKey));
             await message.channel.send({content: "Stopping listener."});
-            FlushCommand(AppConfig).callback(message, "", false);
+            await FlushCommand(AppConfig).callback(message, "", false);
             console.log("Flush de stop",message);
             
           //  appConfig.LISTENER_STORAGE.deleteListener(configKey);

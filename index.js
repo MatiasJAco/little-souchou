@@ -311,71 +311,71 @@ main();
 
 
  // Activity updater
- class StreamActivity {
-    /**
-     * Registers a channel that has come online, and updates the user activity.
-     */
-    static setChannelOnline(stream) {
-        this.onlineChannels[stream.user_name] = stream;
-
-         this.updateActivity();
-     }
-
+//  class StreamActivity {
 //     /**
-//      * Marks a channel has having gone offline, and updates the user activity if needed.
+//      * Registers a channel that has come online, and updates the user activity.
 //      */
-     static setChannelOffline(stream) {
-         delete this.onlineChannels[stream.user_name];
+//     static setChannelOnline(stream) {
+//         this.onlineChannels[stream.user_name] = stream;
 
-         this.updateActivity();
-     }
+//          this.updateActivity();
+//      }
 
-//     /**
-//      * Fetches the channel that went online most recently, and is still currently online.
-//      */
-     static getMostRecentStreamInfo() {
-         let lastChannel = null;
-         for (let channelName in this.onlineChannels) {
-             if (typeof channelName !== "undefined" && channelName) {
-                 lastChannel = this.onlineChannels[channelName];
-             }
-         }
-         return lastChannel;
-     }
+// //     /**
+// //      * Marks a channel has having gone offline, and updates the user activity if needed.
+// //      */
+//      static setChannelOffline(stream) {
+//          delete this.onlineChannels[stream.user_name];
 
-//     /**
-//      * Updates the user activity on Discord.
-//      * Either clears the activity if no channels are online, or sets it to "watching" if a stream is up.
-//      */
-     static updateActivity() {
-         let streamInfo = this.getMostRecentStreamInfo();
+//          this.updateActivity();
+//      }
 
-         if (streamInfo) {
-             this.discordClient.user.setActivity(streamInfo.user_name, {
-                 "url": `https://twitch.tv/${streamInfo.user_name.toLowerCase()}`,
-                 "type": "STREAMING"
-             });
+// //     /**
+// //      * Fetches the channel that went online most recently, and is still currently online.
+// //      */
+//      static getMostRecentStreamInfo() {
+//          let lastChannel = null;
+//          for (let channelName in this.onlineChannels) {
+//              if (typeof channelName !== "undefined" && channelName) {
+//                  lastChannel = this.onlineChannels[channelName];
+//              }
+//          }
+//          return lastChannel;
+//      }
 
-             console.log('[StreamActivity]', `Update current activity: watching ${streamInfo.user_name}.`);
-         } else {
-             console.log('[StreamActivity]', 'Cleared current activity.');
+// //     /**
+// //      * Updates the user activity on Discord.
+// //      * Either clears the activity if no channels are online, or sets it to "watching" if a stream is up.
+// //      */
+//      static updateActivity() {
+//          let streamInfo = this.getMostRecentStreamInfo();
 
-             this.discordClient.user.setActivity(null);
-         }
-     }
+//          if (streamInfo) {
+//              this.discordClient.user.setActivity(streamInfo.user_name, {
+//                  "url": `https://twitch.tv/${streamInfo.user_name.toLowerCase()}`,
+//                  "type": "STREAMING"
+//              });
 
-     static init(discordClient) {
-         this.discordClient = discordClient;
-         this.onlineChannels = { };
+//              console.log('[StreamActivity]', `Update current activity: watching ${streamInfo.user_name}.`);
+//          } else {
+//              console.log('[StreamActivity]', 'Cleared current activity.');
 
-         this.updateActivity();
+//              this.discordClient.user.setActivity(null);
+//          }
+//      }
 
-         // Continue to update current stream activity every 5 minutes or so
-         // We need to do this b/c Discord sometimes refuses to update for some reason
-         // ...maybe this will help, hopefully
-         setInterval(this.updateActivity.bind(this), 5 * 60 * 1000);
-     }
- }
+//      static init(discordClient) {
+//          this.discordClient = discordClient;
+//          this.onlineChannels = { };
+
+//          this.updateActivity();
+
+//          // Continue to update current stream activity every 5 minutes or so
+//          // We need to do this b/c Discord sometimes refuses to update for some reason
+//          // ...maybe this will help, hopefully
+//          setInterval(this.updateActivity.bind(this), 5 * 60 * 1000);
+//      }
+//  }
 
 // // // ---------------------------------------------------------------------------------------------------------------------
 // // // Live events

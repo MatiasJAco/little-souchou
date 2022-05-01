@@ -1,7 +1,7 @@
 const Discord = require('discord.js');
 const { ChatMessage } = require('../../models/chat.message');
 
-const owner = '106091790301421568';
+const owner = '489538294493741056';
 
 /**
  * 

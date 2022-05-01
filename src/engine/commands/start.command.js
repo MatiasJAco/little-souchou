@@ -1,5 +1,6 @@
 const { AppConfig } = require("../../../app.config");
 const { FlushCommand } = require("./flush.command");
+
 const { Command, HelpTip } = require('../../models/command');
 const { Timestamp } = require("../../models/timestamp");
 const { LiteralConstants } = require('../../utils/literal.constants');
@@ -24,6 +25,7 @@ const DiscordChannelSync = require("../../utils/discord-channel-sync");
 //const ElizaHelper = require('./eliza');
 const LiveEmbed = require('../../utils/live-embed');
 const MiniDb = require('../../utils/minidb');
+const { StopCommand } = require("./stop.command");
 
 //-----------
 
@@ -39,6 +41,7 @@ function command(appConfig){
         async (message, args, override) => { 
             const configKey = override ? override : message;
             console.log("Esta listening:",appConfig.CONFIG_STORAGE.getProperty(configKey, 'listening'));
+            appConfig.CONFIG_STORAGE.setProperty(configKey, 'stream_live', false);
             if (appConfig.CONFIG_STORAGE.getProperty(configKey, 'listening') !== "true"){
             let targetChannels = [];
             // const configKey = override ? override : message;
@@ -137,22 +140,29 @@ function command(appConfig){
 
             //     // Begin Twitch API polling
             StreamActivity.init(guild);
-            
-           TwitchMonitor.start(configKey,appConfig);
+       
+           TwitchMonitor.start(guild,configKey,appConfig);
            //console.log("configKey",configKey);
            
-       
+           let liveMessageDb = new MiniDb('live-messages-'+ channel.guild.id);
+           let messageHistory = liveMessageDb.get("history") || { };
  
 
 // // ---------------------------------------------------------------------------------------------------------------------
 // // Live events
 
-let liveMessageDb = new MiniDb('live-messages');
-let messageHistory = liveMessageDb.get("history") || { };
+
 
 TwitchMonitor.onChannelLiveUpdate((streamData) => {
     const isLive = streamData.type === "live";
-
+    let anySent = false;
+    console.log("[TwitchMonitor] stream data TIPO:", streamData.type);
+    console.log("[TwitchMonitor] guild:", channel.guildId);
+    console.log("[TwitchMonitor] guild:", channel.guildId);
+    const streamer = appConfig.CONFIG_STORAGE.getProperty(configKey, 'streamer');
+    console.log("Streamdata",streamData.user_name,"streamer",streamer);
+    if (streamer === streamData.user_name ){
+    messageHistory = liveMessageDb.get("history") || { };
     // Refresh channel list
     // try {
     //     syncServerList(false);
@@ -171,7 +181,7 @@ TwitchMonitor.onChannelLiveUpdate((streamData) => {
     //     }
     // });
     var VODurl ="";
-    console.log('VOD:', channelIds.length );
+    //console.log('VOD:', channelIds.length );
     VODurl = TwitchApi.fetchVOD(channelIds)
     .then((channels) => {
         console.log('VOD:', channels[0].url );
@@ -181,32 +191,40 @@ TwitchMonitor.onChannelLiveUpdate((streamData) => {
     
     
     
-    const configKey = "kson";
+    //const configKey = "kson";
 
     const listener = new ChatListener(streamData.user_login, streamData,streamData.type,VODurl,false);
 
-    console.log('Nuevo listener:', listener.getLiveStatus() );
-    console.log('Nuevo listener:', listener.getName() );
-    console.log('Nuevo listener VOD:', listener.getVODurl() );
+    console.log(channel.guildId,' - Status del listener:', listener.getLiveStatus() );
+    console.log(channel.guildId,' - Nombre del listener:', listener.getName() );
+    console.log(channel.guildId,' - VOD del listener:', listener.getVODurl() );
     AppConfig.LISTENER_STORAGE.setListener(configKey, listener);
+    
     //AppConfig.CONFIG_STORAGE.setProperty(configKey, 'listening', "true");
 }).catch((err) => {
     console.warn('[TwitchMonitor]', 'Error in VOD query:', err);
 });
     // Generate message
     const msgFormatted = `${streamData.user_name} went live on Twitch!`;
-    console.log('Stream data:',streamData.started_at,streamData.game_name );
+    console.log(channel.guildId,'Stream data:',streamData.started_at,streamData.game_name );
     const msgEmbed = LiveEmbed.createForStream(streamData);
-
+    console.log(channel.guildId,"targetChannels tamanio:",targetChannels.length );
     // Broadcast to all target channels
-    let anySent = false;
+   
 
     for (let i = 0; i < targetChannels.length; i++) {
         //const discordChannel = targetChannels[i];
+        
         discordChannel = channel;
+        console.log(channel.guildId,"discordchannel name:",discordChannel.name );
+        console.log(channel.guildId,"discordchannel id:",discordChannel.guild.id );
         const liveMsgDiscrim = `${discordChannel.guild.id}_${discordChannel.name}_${streamData.id}`;
-        console.log('guild',liveMsgDiscrim);
-        if (discordChannel) {
+        console.log(channel.guildId,'liveMsgDiscrim',liveMsgDiscrim);
+        console.log(channel.guildId,'messageHistory',messageHistory);
+     //   const streamer = appConfig.CONFIG_STORAGE.getProperty(configKey, 'streamer');
+        console.log("Streamdata",streamData.user_name,"streamer",streamer);
+        //&& streamer === streamData.user_name
+        if (discordChannel ) {
             try {
                 // Either send a new message, or update an old one
                 let existingMsgId = messageHistory[liveMsgDiscrim] || null;
@@ -218,14 +236,102 @@ TwitchMonitor.onChannelLiveUpdate((streamData) => {
                     //flush
                    // FlushCommand(AppConfig).callback(message, args, override);
                     // Fetch existing message
-                  discordChannel.messages.fetch(existingMsgId)
+                  //discordChannel.messages.fetch(existingMsgId)
+                  channel.messages.fetch(existingMsgId)
                     .then((existingMsg) => {
                           // Clean up entry if no longer live
                           if (!isLive) {
-                            console.log('Antes del flush' );
-                            FlushCommand(AppConfig).callback(discordChannel, "", false);
+                            console.log(channel.guildId,'Antes del flush',channel.guild.id  );
+
+                            //---------------DOING something UGLY-----------///
+                         /*    const configKey = channel;
+                            const logger = new Logger(appConfig.DISCORD_HELPERS.getGuildId(configKey));
+                            const guild = appConfig.DISCORD_HELPERS.getOtherBotGuilds(message).find(g => g.id == configKey.guild.id);
+                            const timestamps = appConfig.TIMESTAMP_STORAGE.getAllTimestamps(guild);
+                            logger.log(`The guild is ${guild.id} `);
+                            console.log(guild.id," - tiene que revisar los timestamps:",timestamps);
+                            logger.log(`Generating stream-end summary...`);
+                            if(timestamps && timestamps.length > 0){
+                                // get all language channels
+                                const channels = [...Object.entries(appConfig.CONFIG_STORAGE.getProperty(configKey, 'output').chat)];
+                                for(entry of timestamps){
+                                    // if timestamp log has content
+                                    if(entry.length > 1){
+                                        const language = entry[0];
+                                        const summary = [];
+                                        // find corresponding output channel
+                                        const mychannel = appConfig.DISCORD_HELPERS.getChannel(guild, channels.find(c => c[0] == language)[1]);
+                                        for(timestamp of entry[1]){
+                                            console.log(guild.id," timestamp of entry :",timestamp);
+                                            // check each stored timestamp for upvotes
+                                            if(timestamp.length > 1){
+                                                const timestampId = timestamp[0];
+                                                try{
+                                                    const timestampMessage =  mychannel.messages.fetch(timestampId);
+                                                    if(timestampMessage){
+                                                        console.log(guild.id,"Dentro de timestamp message :",timestamp);
+                                                        console.log(guild.id,"Timestampmessage es:",timestampMessage);
+                                                        console.log(guild.id,"reactions es:",timestampMessage.reactions.cache);
+                                                        const upvotes =  timestampMessage.reactions.cache.get(LiteralConstants.REACT_UPVOTE_EMOJI);
+                                                        console.log(guild.id,"upvotes es:",upvotes);
+                                                        
+                                                        const upvoteCount = upvotes ? upvotes.count : 0;
+                                                        const downvotes = timestampMessage.reactions.cache.get(LiteralConstants.REACT_DOWNVOTE_EMOJI);
+                                                        const downvoteCount = downvotes ? downvotes.count : 0;
+                                                        if(upvoteCount >= downvoteCount){
+                                                            console.log(guild.id,"Dentro de up and down  :",timestamp);
+                                                            // write to summary log if upvoted
+                                                            const timestampEntry = `${formatTime(
+                                                                timestamp[1].stampTime + 
+                                                                timestamp[1].adjustment - 
+                                                                timestamp[1].startTime).print()} - ${timestamp[1].description}${formatTime(
+                                                                    timestamp[1].stampTime + 
+                                                                    timestamp[1].adjustment - 
+                                                                    timestamp[1].startTime).printTwitch()}`
+                                                            summary.push(timestampEntry);
+                                                             console.log(`Tiemstamp ${guild.id} - ${language} - ${JSON.stringify(timestamp)}`);
+                                                        }
+                                                        // disables the buttons
+                                                         timestampMessage.edit({
+                                                            components: timestampMessage.components.map((a) => {
+                                                                    a.components.map((b) => {
+                                                                    b.setDisabled(true);
+                                                                    return b;
+                                                                })
+                                                                return a;
+                                                            })
+                                                        })
+                                                    }
+                                                }catch(e){
+                                                    logger.error(`Unable to find message with ID: ${timestampId}: ${e}`);
+                                                }
+                                            }
+                                        }
+                                        if(summary.length > 0){
+                                            const content = summary.sort().join('\n');
+                                            logger.log(`Posting ${language} summary:\n${content}`);
+                                            const attachment = appConfig.DISCORD_HELPERS.generateAttachment(content, `${language}-summary.txt`);
+                                            mychannel.send({ content: `The stream has ended. Here's a summary:`, files: [ attachment ]});
+                                        }
+                                        if(summary.length == 0){
+                                          //  const content = summary.sort().join('\n');
+                                         //   logger.log(`Posting ${language} summary:\n${content}`);
+                                          //  const attachment = appConfig.DISCORD_HELPERS.generateAttachment(content, `${language}-summary.txt`);
+                                            mychannel.send({ content: `The stream has ended. There are no tags.`});
+                                        }
+                                    }
+                                }
+                                // flush
+                                appConfig.TIMESTAMP_STORAGE.deleteGuildTimestamps(guild);
+                            } */
+
+                            ////////////////////////////////////////////////////
+                     
+                           // FlushCommand(AppConfig).callback(channel, "", false);
+                            console.log(channel.guildId,"Borrando registro:",liveMsgDiscrim);
                             delete messageHistory[liveMsgDiscrim];
                             liveMessageDb.put('history', messageHistory);
+                            StopCommand(AppConfig).callback(message, "autostop", false);
                           }
                    //     });
                       })
@@ -233,6 +339,7 @@ TwitchMonitor.onChannelLiveUpdate((streamData) => {
                         // Unable to retrieve message object for editing
                         if (e.message === "Unknown Message") {
                             // Specific error: the message does not exist, most likely deleted.
+                            console.log(channel,"Borrando mensaje",liveMsgDiscrim);
                             delete messageHistory[liveMsgDiscrim];
                             liveMessageDb.put('history', messageHistory);
                             // This will cause the message to be posted as new in the next update if needed.
@@ -248,7 +355,7 @@ TwitchMonitor.onChannelLiveUpdate((streamData) => {
                     // Expand the message with a @mention for "here" or "everyone"
                     // We don't do this in updates because it causes some people to get spammed
                     let mentionMode = (config.discord_mentions && config.discord_mentions[streamData.user_name.toLowerCase()]) || null;
-
+/* 
                     if (mentionMode) {
                         mentionMode = mentionMode.toLowerCase();
 
@@ -269,7 +376,7 @@ TwitchMonitor.onChannelLiveUpdate((streamData) => {
                                 mentionMode = null;
                             }
                         }
-                    }
+                    } */
 
 
                     const alertRole = appConfig.DISCORD_HELPERS.getRole(guild, appConfig.CONFIG_STORAGE.getProperty(configKey, 'role').alert);
@@ -290,15 +397,20 @@ TwitchMonitor.onChannelLiveUpdate((streamData) => {
   //.setTimestamp();
 
                     //discordChannel.send(msgToSend, msgOptions)
-                    discordChannel.send({content: msgToSend,  embeds: [msgEmbed]})
+
+                    channel.send({content: msgToSend,  embeds: [msgEmbed]})
                         .then((message) => {
-                            console.log('[Discord]', `Sent announce msg to #${discordChannel.name} on ${discordChannel.guild.name}`)
+                            console.log('[Discord]', `Sent announce msg to #${channel.name} on ${channel.guild.name}`)
 
                             messageHistory[liveMsgDiscrim] = message.id;
                             liveMessageDb.put('history', messageHistory);
+                           
+                            if(channel.guild && channel.guild.me){
+                                      channel.guild.me.setNickname(LiteralConstants.BOT_NAME_ONLINE);
+                                     }
                         })
                         .catch((err) => {
-                            console.log('[Discord]', `Could not send announce msg to #${discordChannel.name} on ${discordChannel.guild.name}:`, err.message);
+                            console.log('[Discord]', `Could not send announce msg to #${channel.name} on ${channel.guild.name}:`, err.message);
                         });
                 }
 
@@ -311,12 +423,21 @@ TwitchMonitor.onChannelLiveUpdate((streamData) => {
 
     liveMessageDb.put('history', messageHistory);
     return anySent;
-});
+
+}});
 
  TwitchMonitor.onChannelOffline((streamData) => {
      // Update activity
      StreamActivity.setChannelOffline(streamData);
  });
+
+
+
+
+
+
+
+
 
 }}, 
         [
@@ -329,6 +450,9 @@ TwitchMonitor.onChannelLiveUpdate((streamData) => {
         `Starts listening to the designated stream.`
     );
 }
+
+
+
 
 
 // Activity updater
@@ -370,15 +494,25 @@ class StreamActivity {
 //      */
      static updateActivity() {
          let streamInfo = this.getMostRecentStreamInfo();
-
+        
          if (streamInfo) {
+             if(streamInfo.type == "live"){
+            
           /*  this.discordClient.me.setActivity(streamInfo.user_name, {
                  "url": `https://twitch.tv/${streamInfo.user_name.toLowerCase()}`,
                  "type": "STREAMING"
              });*/
-             this.discordClient.me.setNickname(LiteralConstants.BOT_NAME_ONLINE);
+            // this.discordClient.me.setNickname(LiteralConstants.BOT_NAME_ONLINE);
+             console.log("cliente",this.discordClient.guildid);
              console.log('[StreamActivity]', `Update current activity: watching ${streamInfo.user_name}.`);
+            }else{
+                console.log("cliente",this.discordClient.guildid);
+                console.log('[StreamActivity]', `Update current activity: tipo ${streamInfo.type}.`);
+             console.log('[StreamActivity]', 'Cleared current activity.');
+             this.discordClient.me.setNickname(LiteralConstants.BOT_NAME_OFFLINE);
+            }
          } else {
+            console.log("cliente",this.discordClient.guildid);
              console.log('[StreamActivity]', 'Cleared current activity.');
              this.discordClient.me.setNickname(LiteralConstants.BOT_NAME_OFFLINE);
              //this.discordClient.user.setActivity(null);
@@ -388,8 +522,8 @@ class StreamActivity {
 
      static init(discordClient) {
          this.discordClient = discordClient;
-         console.log("cliente",discordClient);
-         console.log("cliente member",discordClient.me);
+         console.log("cliente",this.discordClient.guildid);
+         console.log("cliente member",this.discordClient.me);
          this.onlineChannels = { };
 
          this.updateActivity();

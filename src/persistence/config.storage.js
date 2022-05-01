@@ -22,6 +22,7 @@ const config = new Enmap({
         },
         emotes: {},
         listening: false,
+        stream_live:false,
     }
 });
 

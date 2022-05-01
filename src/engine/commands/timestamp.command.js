@@ -19,7 +19,8 @@ function command(appConfig){
             const configKey = override ? override : message;
            
             const logger = new Logger(appConfig.DISCORD_HELPERS.getGuildId(configKey));
-            const listener = appConfig.LISTENER_STORAGE.getListener("kson");
+            //const listener = appConfig.LISTENER_STORAGE.getListener("kson");
+            const listener = appConfig.LISTENER_STORAGE.getListener(configKey);
             //logger.log("listening:", `${listener.isListening()}`);
             const liveStat = listener.getLiveStatus();
             const sdata = listener.getStreamData();
@@ -61,7 +62,10 @@ function command(appConfig){
                         for(let language of languages){
                             //const timestampEntry = `${timestamp.time.print()} - ${timestamp.description}`
                             logger.log(`Writing timestamp: ${timestamp}`);
+                            console.log(`Tiemstamp ${guild.id} - ${language} - ${JSON.stringify(timestamp)}`);
                             appConfig.TIMESTAMP_STORAGE.addTimestamp(guild, language[0], embed.id, timestamp);
+                            const current_timestamps = appConfig.TIMESTAMP_STORAGE.getAllTimestamps(guild);
+                            console.log(`Ahora los timestamps de ${guild.id} son: ${current_timestamps}`);
                         }
                         await embed.react(LiteralConstants.REACT_UPVOTE_EMOJI);
                         await embed.react(LiteralConstants.REACT_DOWNVOTE_EMOJI);

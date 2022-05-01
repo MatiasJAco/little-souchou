@@ -3,12 +3,14 @@ const TwitchApi = require('./twitch-api');
 const MiniDb = require('../../utils/minidb');
 const moment = require('moment');
 const { appConfig } = require('../../../app.config');
+const { runInThisContext } = require('vm');
 
 class TwitchMonitor {
     static __init() {
+        
         this._userDb = new MiniDb("twitch-users-v2");
         this._gameDb = new MiniDb("twitch-games");
-
+        this._guild = "";
         this._lastUserRefresh = this._userDb.get("last-update") || null;
         this._pendingUserRefresh = false;
         this._userData = this._userDb.get("user-list") || { };
@@ -18,8 +20,9 @@ class TwitchMonitor {
         this._watchingGameIds = [];
     }
 
-    static start(configKey ,appConfig) {
+    static start(guild,configKey ,appConfig) {
         // Load channel names from config
+        this._guild = guild;
         this.channelNames = [];
         this.channelIds = [];
          config.twitch_channels.split(',').forEach((channelName) => {
@@ -34,7 +37,7 @@ class TwitchMonitor {
             // myVar is defined AND initialized
             console.log('[TwitchMonitor]', 'Obtener streamer al inicio',appConfig);
             const users = appConfig.CONFIG_STORAGE.getProperty(configKey, "streamer");
-            console.log('[TwitchMonitor]', 'streamer es:',users);
+            console.log('[TwitchMonitor] START', 'streamer es:',users);
             this.channelNames.length = 0
             this.channelNames.push(users.toLowerCase());
           }
@@ -89,8 +92,10 @@ class TwitchMonitor {
           } else {
           console.log('[TwitchMonitor]', 'Obtener streamer',appConfig);
             users = appConfig.CONFIG_STORAGE.getProperty(configKey, "streamer");
-            console.log('[TwitchMonitor]', 'streamer es:',users);
+            console.log('[TwitchMonitor] REFRESH', 'streamer es:',users);
             console.log('[TwitchMonitor]', 'Canales actuales',this.channelNames.length);
+            console.log('[TwitchMonitor]', 'streamsActivos:',this.activeStreams,"para guild:",this._guild.id);
+            console.log('[TwitchMonitor]', 'guild:',configKey.guildid);
             if (users === "null" && this.channelNames.length > 0){
                 
                 let last_channel = this.channelNames.pop();
@@ -144,9 +149,22 @@ class TwitchMonitor {
 
         // Refresh all streams
         if (!this._pendingUserRefresh && !this._pendingGameRefresh && users !== "null") {
+            console.log("Llama a la api por:", this.channelNames);
             TwitchApi.fetchStreams(this.channelNames)
               .then((channels) => {
-                  this.handleStreamList(channels);
+                if(typeof appConfig !== 'undefined'){ 
+                let streamer_discord =appConfig.CONFIG_STORAGE.getProperty(configKey, "streamer");
+                console.log("HandleStreams-streamer_discord ",streamer_discord);
+                console.log("HandleStreams- channels ",channels);
+                
+                let current_channel ="a";
+                if(channels.length == 1)
+                    current_channel = channels[0].user_name;
+
+                    console.log("HandleStreams- current_channel ",current_channel);
+                if(streamer_discord === current_channel.toLowerCase() || current_channel === "a")
+                  this.handleStreamList(channels,configKey,appConfig);
+                } 
               })
               .catch((err) => {
                   console.warn('[TwitchMonitor]', 'Error in streams refresh:', err);
@@ -197,25 +215,27 @@ class TwitchMonitor {
         this._gameDb.put("game-list", this._gameData);
     }
 
-    static handleStreamList(streams) {
+    static handleStreamList(streams,configKey,appConfig) {
         // Index channel data & build list of stream IDs now online
         let nextOnlineList = [];
+        let nextOnlineListBeta = [];
         let nextGameIdList = [];
-
+        console.log("HandleStreamslist- streams ",streams);
         streams.forEach((stream) => {
             const channelName = stream.user_name.toLowerCase();
 
             if (stream.type === "live") {
                 nextOnlineList.push(channelName);
+                nextOnlineListBeta.push({ name: configKey.guildid , value: channelName });
             }
-
+            console.log("HandleStreamslist- prevstreamData ",this.streamData);
             let userDataBase = this._userData[stream.user_id] || { };
             let prevStreamData = this.streamData[channelName] || { };
 
             this.streamData[channelName] = Object.assign({ }, userDataBase, prevStreamData, stream);
             this.streamData[channelName].game = (stream.game_id && this._gameData[stream.game_id]) || null;
             this.streamData[channelName].user = userDataBase;
-
+            console.log("HandleStreamslist- prevstreamData after ",this.prevStreamData);
             if (stream.game_id) {
                 nextGameIdList.push(stream.game_id);
             }
@@ -224,33 +244,60 @@ class TwitchMonitor {
         // Find channels that are now online, but were not before
         let notifyFailed = false;
         let anyChanges = false;
-
+        console.log('[TwitchMonitor]', 'List Beta name:', nextOnlineListBeta);
+        console.log('[TwitchMonitor]', 'List activos name:', this.activeStreams);
         for (let i = 0; i < nextOnlineList.length; i++) {
             let _chanName = nextOnlineList[i];
-
-            if (this.activeStreams.indexOf(_chanName) === -1) {
+            let _chanNameBeta = nextOnlineListBeta[i].value;
+            let _guildID = nextOnlineListBeta[i].name;
+            let _configStreamer = appConfig.CONFIG_STORAGE.getProperty(configKey, "streamer");
+            let _current_stream_live = appConfig.CONFIG_STORAGE.getProperty(configKey, "stream_live");
+            console.log('[TwitchMonitor]', 'List Beta name:', _chanNameBeta);
+            console.log('[TwitchMonitor]', 'List Beta guild:', _guildID);
+            console.log('[TwitchMonitor]', 'Config streamer:', _configStreamer);
+            console.log('[TwitchMonitor]', 'stream_live:', _current_stream_live);
+           // if (this.activeStreams.indexOf(_chanName) === -1 && this.activeStreams.length == 0) {
+               if(_configStreamer === _chanName && !_current_stream_live ){
                 // Stream was not in the list before
-                console.log('[TwitchMonitor]', 'Stream channel has gone online:', _chanName);
-                anyChanges = true;
-            }
+                    appConfig.CONFIG_STORAGE.setProperty(configKey, 'stream_live', true);
+                    console.log('[TwitchMonitor]', 'Stream channel has gone online:', _chanName);
+                    anyChanges = true;
+                    
 
-            if (!this.handleChannelLiveUpdate(this.streamData[_chanName], true)) {
-                notifyFailed = true;
-            }
+                 if (!this.handleChannelLiveUpdate(this.streamData[_chanName], true)) {
+                     notifyFailed = true;
+                  }
+                }
         }
 
         // Find channels that are now offline, but were online before
-        for (let i = 0; i < this.activeStreams.length; i++) {
+/*         for (let i = 0; i < this.activeStreams.length; i++) {
+            
             let _chanName = this.activeStreams[i];
-
-            if (nextOnlineList.indexOf(_chanName) === -1) {
+            let configured_streamer = appConfig.CONFIG_STORAGE.getProperty(configKey, "streamer");
+            console.log('[TwitchMonitor]', 'Offline?:', _chanName);
+            console.log('[TwitchMonitor]', 'Offline?:', configured_streamer);
+            if (nextOnlineList.indexOf(_chanName) === -1  && nextOnlineList.length == 0 && configured_streamer === _chanName) {
                 // Stream was in the list before, but no longer
                 console.log('[TwitchMonitor]', 'Stream channel has gone offline:', _chanName);
                 this.streamData[_chanName].type = "detected_offline";
                 this.handleChannelOffline(this.streamData[_chanName]);
                 anyChanges = true;
             }
+        } */
+        let configured_streamer = appConfig.CONFIG_STORAGE.getProperty(configKey, "streamer");
+        let _current_stream_live = appConfig.CONFIG_STORAGE.getProperty(configKey, "stream_live");
+        if (nextOnlineList.indexOf(configured_streamer) === -1 && _current_stream_live){
+            appConfig.CONFIG_STORAGE.setProperty(configKey, 'stream_live', false);
+            console.log('[TwitchMonitor]', 'Stream channel has gone offline:', configured_streamer);
+            this.streamData[configured_streamer].type = "detected_offline";
+            this.handleChannelOffline(this.streamData[configured_streamer]);
+            anyChanges = true;
+
         }
+            
+
+
 
         if (!notifyFailed) {
             // Notify OK, update list
